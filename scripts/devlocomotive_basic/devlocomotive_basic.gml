@@ -1,12 +1,21 @@
 
 // 16.03.2021
-// 22.03.2021
+// 23.03.2021
+
+//
+//!#import "#import-devlocomotive_basic"
+
+/* imports
+#import array.*           as Arr
+#import variable_struct.* as Stc
+#import string_*          as Str
+#import array_ext.*       as ArrExt
+#import struct_ext.*      as StcExt
+#import string_ext.*      as StrExt
+#import factory.*         as Fact
+*/
 
 #region factory-method
-    
-    //
-    // #macro placehold factory_data()
-    // #macro get_first factory_get()
     
     /// @function factory_data([-1=[]|0=undefined|1={}=0]);
     /// @param [-1=[]|0=undefined|1={}=0] {sign}
@@ -689,12 +698,20 @@
     
     //
     function string_ext_range(_string, _index_begin, _index_end) {
-    	if _index_begin > _index_end {
-    		var _swap = _index_begin;
-    		_index_begin = _index_end;
-    		_index_end = _swap;
-    	}
     	return string_copy(_string, _index_begin, _index_end - _index_begin + 1);
+    }
+    
+    //
+    function string_ext_replace_count(_new_string, _string, _index, _count) {
+    	if (_count <= 0) return string_insert(_new_string, _string, _index);
+    	if (_index < 1) or (_index > string_length(_string)) throw "";
+    	_index -= 1;
+    	return string_copy(_string, 1, _index) +  _new_string + string_delete(_string, 1, _index + _count);
+    }
+    
+    //
+    function string_ext_replace_pos(_new_string, _string, _index_begin, _index_end) {
+    	return string_ext_replace_count(_new_string, _string, _index_begin, _index_end - _index_begin + 1);
     }
     
     //
