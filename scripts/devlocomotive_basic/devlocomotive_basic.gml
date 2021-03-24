@@ -740,37 +740,142 @@
     
     //
     function stringExt_filter(_string, _predicate) {
-    	var _new_string = GL_StringConcat().enable(), _size = string_length(_string);
+    	var _size = string_length(_string);
     	if _size {
-    		var _i = 0, _char;
+    		var _i = 0, _char, _new_string = GL_StringConcat().enable();
     		while (_i++ < _size) {
     			_char = string_char_at(_string, _i);
     			if _predicate(_char, _i, _string) _new_string.add(_char);
     		}
+    		return _new_string.render();
     	}
-    	return _new_string.render();
+    	return "";
     }
     
     //
     function stringExt_map(_string, _handler) {
-    	var _new_string = GL_StringConcat().enable(), _size = string_length(_string);
+    	var _size = string_length(_string);
     	if _size {
-    		var _i = 0;
+    		var _i = 0, _new_string = GL_StringConcat().enable();
     		while (_i++ < _size) _new_string.add(_handler(string_char_at(_string, _i), _i, _string));
+    		return _new_string.render();
     	}
-    	return _new_string.render();
+    	return "";
     }
     
     //
     function stringExt_concat() {
-    	var _new_string = GL_StringConcat().enable(), _i = -1;
-    	while (++_i < argument_count) _new_string.add(argument[_i]);
-    	return _new_string.render();
+    	if argument_count {
+	    	var _new_string = GL_StringConcat().enable(), _i = -1;
+	    	while (++_i < argument_count) _new_string.add(argument[_i]);
+	    	return _new_string.render();
+    	}
+    	return "";
+    }
+
+#endregion
+
+#region string-template
+	
+    //
+    function templateRender(_format) {
+    	static _memory = ____template_interface____();
+    	if variable_struct_exists(_memory.map, _format) {
+			var _pack = variable_struct_get(_memory.map, _format);
+			_pack.ref.lifetime = _memory.lifetime; _pack = _pack.stack;
+    		var _new_string = GL_StringConcat().enable(), _size = array_length(_pack), _text, _i = -1, _argument = 1;
+    		while (++_i < _size) {
+    			_text = _pack[_i];
+    			_new_string.add(is_string(_text) ? _text : string(argument[_argument++]));
+    		} show_message("hi");
+    		return _new_string.render();
+    	}
+    	var _size = string_length(_format);
+    	if _size {
+    		var _i = 0, _j = 1, _new_string = GL_StringConcat().enable(), _length, _text, _counter = 1, _savemem = [];
+    		while (_i++ < _size)
+    			if (string_char_at(_format, _i) == "%") {
+    				_length = _i - _j;
+    				if _length {
+    					_text = string_copy(_format, _j, _length);
+    					array_push(_savemem, _text);
+    					_new_string.add(_text);
+    				}
+    				_j = _i + 1;
+    				_new_string.add(string(argument[_counter++]));
+    				array_push(_savemem, undefined);
+    			}
+    		if (_counter == 1) {
+    			_new_string.disable();
+    			return _format;
+    		}
+    		_length = _i - _j;
+    		if _length {
+    			_text = string_copy(_format, _j, _length);
+				array_push(_savemem, _text);
+				_new_string.add(_text);
+    		}
+    		var _ref_id = {id: _memory.count, stack: _savemem};
+    		var _ref_fm = {lifetime: _memory.lifetime, key: _format};
+    		_ref_id.ref = _ref_fm;
+    		_ref_fm.ref = _ref_id;
+    		variable_struct_set(_memory.map, _format, _ref_id);
+			variable_struct_set(_memory, _memory.count++, _ref_fm);
+    		return _new_string.render();
+    	}
+    	return "";
     }
     
-    //
-    function stringExt_template(_format) {
-    	
+	//
+	function templateCleaner() {
+		static _memory = ____template_interface____();
+		var _i = 0, _pack = variable_struct_get(_memory, 0);
+		while (_i < _memory.count) {
+			if (_pack.lifetime-- < 0) {
+				variable_struct_remove(_memory.map, _pack.key);
+				_pack = variable_struct_get(_memory, --_memory.count);
+				_pack.ref.id = _i;
+				variable_struct_set(_memory, _i, _pack);
+				variable_struct_remove(_memory, _memory.count);
+				continue;
+			}
+			_pack = variable_struct_get(_memory, ++_i);
+		}
+	}
+	
+	//
+	function ____template_interface____() {
+		static _interface = {
+			lifetime: 4,
+			count: 0,
+			map: {},
+		}
+		return _interface;
+	}
+
+#endregion
+
+#region metwrap
+    
+    /// @function runFor([run=factory_data(), class=undefined]);
+    /// @description
+    /// @param [run=factory_data() {function/method}
+    /// @param class=undefined] {struct/instance}
+    /// @returns {method}
+    function runFor(_run, _class) {
+        static _default = factory_data();
+        if is_undefined(_run) return _default;
+        return method(_class, _run);
+    }
+    
+    /// @function unFrom([meth=method_get_index(factory_data())]);
+    /// @description
+    /// @param [meth=method_get_index(factory_data())] {method}
+    /// @returns {function}
+    function unFrom(_meth) {
+        static _default = method_get_index(factory_data());
+        if is_undefined(_meth) return _default;
+        return method_get_index(_meth);
     }
     
 #endregion
@@ -782,6 +887,7 @@
 		static _base = function() {
 			var _base = {};
 			with _base {
+				self.__temp_size = -1;
 				self.__size_default = 512;
 				self.__busy = false;
 				self.__statistics = {
@@ -826,7 +932,7 @@
 				}
 				self.__interface.clear = function() {
 					buffer_seek(self.__buffer, buffer_seek_start, 0);
-					buffer_resize(self.__buffer, self.__statistics.size);
+					buffer_resize(self.__buffer, self.__temp_size);
 					return self.__interface;
 				}
 				self.__interface.disable = function() {
@@ -837,6 +943,7 @@
 				self.enable = function() {
 					if self.__busy throw "";
 					self.__busy = true;
+					self.__temp_size = buffer_get_size(self.__buffer);
 					return self.__interface;
 				}
 				self.reset = function() {
@@ -1085,31 +1192,6 @@
     }
     
 	
-#endregion
-
-#region metwrap
-    
-    /// @function runFor([run=factory_data(), class=undefined]);
-    /// @description
-    /// @param [run=factory_data() {function/method}
-    /// @param class=undefined] {struct/instance}
-    /// @returns {method}
-    function runFor(_run, _class) {
-        static _default = factory_data();
-        if is_undefined(_run) return _default;
-        return method(_class, _run);
-    }
-    
-    /// @function unFrom([meth=method_get_index(factory_data())]);
-    /// @description
-    /// @param [meth=method_get_index(factory_data())] {method}
-    /// @returns {function}
-    function unFrom(_meth) {
-        static _default = method_get_index(factory_data());
-        if is_undefined(_meth) return _default;
-        return method_get_index(_meth);
-    }
-    
 #endregion
 
 
