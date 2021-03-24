@@ -1,8 +1,10 @@
 
 // 16.03.2021
 
+//!#import self.* as this
+
 //
-function self_new(_key) {
+function self_create(_key) {
 	return self_set(_key, {});
 }
 
@@ -35,3 +37,4 @@ function self_generate(_code) {
     method(_struct, _code)();
     return _struct;
 }
+
