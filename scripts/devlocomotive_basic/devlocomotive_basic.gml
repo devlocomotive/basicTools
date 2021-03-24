@@ -580,7 +580,7 @@
     /// @param struct {struct}
     /// @param names  {array[buffer_string]}
     /// @returns {number}
-    function structExt_remove(_struct, _names) {
+    function structExt_remove(_struct, _names) { // TODO: optimizate
         if is_undefined(_names) _names = variable_struct_get_names(_struct);
         if !is_array(_names) _names = [_names];
         var _size = array_length(_names), _i = -1, _count = 0, _checker = variable_struct_names_count(_struct);
@@ -711,7 +711,7 @@
     	if (_count <= 0) return string_insert(_substring, _string, _index);
     	if (_index < 1) or (_index > string_length(_string)) throw "";
     	_index -= 1;
-    	return string_copy(_string, 1, _index) +  _substring + string_delete(_string, 1, _index + _count);
+    	return string_copy(_string, 1, _index) + _substring + string_delete(_string, 1, _index + _count);
     }
     
     //
@@ -723,7 +723,7 @@
     function stringExt_selector(_string, _selector, _mode) {
     	static _temp_selector = new StringSelector(undefined);
     	if is_undefined(_mode) _mode = true;
-    	if is_struct(_selector) and (instanceof(_selector) == "stringExt_selector_build") {
+    	if is_struct(_selector) and (instanceof(_selector) == "StringSelector") {
     		var _save_mode = _selector.mode;
     		var _result = _selector.mode_set(_mode).filter(_string);
     		_selector.mode_set(_save_mode);
@@ -739,39 +739,159 @@
     }
     
     //
-    function stringExt_filter(_string, _predicate) { // TODO:buffer
-    	var _new_string = "", _size = string_length(_string);
+    function stringExt_filter(_string, _predicate) {
+    	var _new_string = GL_StringConcat().enable(), _size = string_length(_string);
     	if _size {
     		var _i = 0, _char;
     		while (_i++ < _size) {
     			_char = string_char_at(_string, _i);
-    			if _predicate(_char, _i, _string) _new_string += _char;
+    			if _predicate(_char, _i, _string) _new_string.add(_char);
     		}
     	}
-    	return _new_string;
+    	return _new_string.render();
     }
     
     //
-    function stringExt_map(_string, _handler) {// TODO:buffer
-    	var _new_string = "", _size = string_length(_string);
+    function stringExt_map(_string, _handler) {
+    	var _new_string = GL_StringConcat().enable(), _size = string_length(_string);
     	if _size {
-    		var _i = 0, _char;
-    		while (_i++ < _size) {
-    			_char = string_char_at(_string, _i);
-    			_new_string += _handler(_char, _i, _string);
-    		}
+    		var _i = 0;
+    		while (_i++ < _size) _new_string.add(_handler(string_char_at(_string, _i), _i, _string));
     	}
-    	return _new_string;
+    	return _new_string.render();
+    }
+    
+    //
+    function stringExt_concat() {
+    	var _new_string = GL_StringConcat().enable(), _i = -1;
+    	while (++_i < argument_count) _new_string.add(argument[_i]);
+    	return _new_string.render();
+    }
+    
+    //
+    function stringExt_template(_format) {
+    	
     }
     
 #endregion
 
-#region class
-	
+#region Class
 	
 	//
-	function StringBuffer() {
-		
+	function GL_StringConcat() {
+		static _base = function() {
+			var _base = {};
+			with _base {
+				self.__size_default = 512;
+				self.__busy = false;
+				self.__statistics = {
+					size: self.__size_default,
+					sizeStack: self.__size_default,
+					sizeIterate: 1,
+				}
+				self.__buffer = buffer_create(self.__size_default, buffer_grow, 1);
+				self.__interface = {};
+				self.__interface.add = function(_string) {
+					buffer_write(self.__buffer, buffer_text, _string);
+					return undefined;
+				}
+				self.__interface.push = function() {
+					var _i = -1;
+					while (++_i < argument_count) buffer_write(self.__buffer, buffer_text, argument[_i]);
+					return undefined;
+				}
+				self.__interface.render = function() {
+					var _buff = self.__buffer;
+					buffer_write(_buff, buffer_u8, 0);
+					buffer_seek(_buff, buffer_seek_start, 0);
+					var _render = buffer_read(_buff, buffer_string);
+					with self.__statistics {
+						self.sizeStack += buffer_tell(_buff);
+						self.sizeIterate += 1;
+						self.size = buffer_get_size(_buff);
+						var _size_midd = self.sizeStack div self.sizeIterate;
+						var _size_diff = abs(self.size - _size_midd);
+						if (1 - _size_diff / self.size > 0.35) {
+							self.size = _size_midd;
+							buffer_resize(_buff, _size_midd);
+						} 
+						if (self.sizeStack > 4294967296) {
+							self.sizeStack = self.size;
+							self.sizeIterate = 1;
+						}
+					}
+					buffer_seek(_buff, buffer_seek_start, 0);
+					self.__busy = false;
+					return _render;
+				}
+				self.__interface.clear = function() {
+					buffer_seek(self.__buffer, buffer_seek_start, 0);
+					buffer_resize(self.__buffer, self.__statistics.size);
+					return self.__interface;
+				}
+				self.__interface.disable = function() {
+					self.__interface.clear();
+					self.__busy = false;
+					return self;
+				}
+				self.enable = function() {
+					if self.__busy throw "";
+					self.__busy = true;
+					return self.__interface;
+				}
+				self.reset = function() {
+					if self.__busy throw "";
+					var _size = self.__size_default;
+					with self.__statistics {
+						self.size = _size;
+						self.sizeStack = _size;
+						self.sizeIterate = 1;
+					}
+					buffer_resize(self.__buffer, _size);
+				}
+				self.free = function() {
+					if self.__busy throw "";
+					buffer_delete(self.__buffer);
+					structExt_remove(self.__interface, undefined);
+					structExt_remove(self, undefined);
+					return undefined;
+				}
+			}
+			return _base;
+		}();
+		return _base;
+	}
+	
+	//
+	function StringConcat(_size) constructor {
+		self.__buffer = buffer_create(is_undefined(_size) ? 256 : _size, buffer_grow, 1);
+		static add = function(_string) {
+			buffer_write(self.__buffer, buffer_text, _string);
+			return self;
+		}
+		static push = function() {
+			var _i = -1;
+			while (++_i < argument_count) buffer_write(self.__buffer, buffer_text, argument[_i]);
+			return self;
+		}
+		static render = function(_delete) {
+			if is_undefined(_delete) _delete = true;
+			if !_delete var _writer = buffer_tell(self.__buffer);
+			buffer_write(self.__buffer, buffer_u8, 0);
+			buffer_seek(self.__buffer, buffer_seek_start, 0);
+			var _string = buffer_read(self.__buffer, buffer_string);
+			if !_delete buffer_seek(self.__buffer, buffer_seek_start, _writer) else self.destroy();
+			return _string;
+		}
+		static clear = function(_newsize) {
+			buffer_seek(self.__buffer, buffer_seek_start, 0);
+			if !is_undefined(_newsize) buffer_resize(self.__buffer, _newsize);
+			return self;
+		}
+		static destroy = function() {
+			buffer_delete(self.__buffer);
+			return undefined;
+		}
 	}
 	
 	//
@@ -900,23 +1020,23 @@
     		if is_string(_string) return stringExt_filter(_string, self.__char_is);
     		return "";
     	}
-    	static replace = function(_substring, _string) { // TODO:buffer
-    		var _new_string = "";
+    	static replace = function(_substring, _string) {
+    		var _new_string = GL_StringConcat().enable();
     		if is_string(_string) {
     			var _size = string_length(_string);
     			if _size {
     				var _i = 0, _char;
     				while (_i++ < _size) {
     					_char = string_char_at(_string, _i);
-    					_new_string += self.__char_is(_char) ? _char : _substring;
+    					_new_string.add(self.__char_is(_char) ? _char : _substring);
     				}
     			}
     		}
-    		return _new_string;
+    		return _new_string.render();
     	}
-    	static buffer_write = function() { // TODO:buffer
+    	static write = function() {
     		if is_undefined(self.__render) {
-    			self.__render = "";
+    			var _new_string = GL_StringConcat().enable();
     			var _size = array_length(self.__selector);
     			if _size {
     				var _i = -1, _in, _out;
@@ -924,18 +1044,19 @@
     					_out = self.__selector[_i];
     					_in = _out[0]; _in = _out[1];
     					do {
-    						self.__render += chr(_in++);
+    						_new_string.add(chr(_in++));
     					} until (_in == _out);
     				}
     			}
     		}
+    		self.__render = _new_string.render();
     		return self.__render;
     	}
-		static buffer_read = function(_string_selector) {
+		static read = function(_string_selector) {
 			return self.clear().add(_string_selector);
 		}
     	static clone = function() {
-    		var _new_selector = new StrExt.selector_build(undefined);
+    		var _new_selector = new StringConcat(undefined);
     		_new_selector.__selector = self.selector_get();
     		_new_selector.__render = self.write();
     		_new_selector.mode = self.mode;
@@ -950,14 +1071,14 @@
     		return self;
     	}
     	static mode_set = function(_mode) {
-    		self.mode = buffer_bool(_mode);
+    		self.mode = bool(_mode);
     		return self;
     	}
     	if is_string(_param)
     		self.add(_param);
     	else if is_array(_param) 
     		self.selector_set(_param);
-    	else if is_struct(_param) and (instanceof(_param) == "stringExt_selector_build") {
+    	else if is_struct(_param) and (instanceof(_param) == "StringSelector") {
     		self.selector_set(_param.__selector);
     		self.__render = _param.write();
     	}
