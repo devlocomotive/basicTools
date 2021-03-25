@@ -70,6 +70,25 @@
 		return method({_error : argument[0]}, _met);
     }
 	
+	//
+	function factory_runner(_arguments, _bindfor, _code) {
+		static _runner = method_get_index(function() {
+			var _arguments = self._arguments;
+			if argument_count {
+				_arguments = arrayExt_clone(_arguments);
+				var _i = array_length(_arguments), _j = _i + argument_count;
+				array_resize(_arguments, _j--);
+				do {
+					array_set(_arguments, _j, argument[_j - _i]);
+				} until (_i == _j--);
+			}
+			if is_undefined(self._bind) return script_execute_ext(self._code, _arguments);
+			with self._bind return script_execute_ext(self._code, _arguments);
+		});
+		if is_method(_code) _code = method_get_index(_code);
+		return method({_bind: _bindfor, _code: _code, _arguments: _arguments}, _runner);
+	}
+	
 #endregion
 
 #region array
@@ -714,7 +733,7 @@
     	if (_count <= 0) return string_insert(_substring, _string, _index);
     	if (_index < 1) or (_index > string_length(_string)) throw "";
     	_index -= 1;
-    	return string_copy(_string, 1, _index) + _substring + string_delete(_string, 1, _index + _count);
+    	return stringExt_concat(string_copy(_string, 1, _index), _substring, string_delete(_string, 1, _index + _count));
     }
     
     //
@@ -745,7 +764,7 @@
     function stringExt_filter(_string, _predicate) {
     	var _size = string_length(_string);
     	if _size {
-    		var _i = 0, _char, _new_string = stringMemoryAutoCleaner().concat;
+    		var _i = 0, _char, _new_string = ____system_string_memory____().concat;
     		while (_i++ < _size) {
     			_char = string_char_at(_string, _i);
     			if _predicate(_char, _i, _string) _new_string.add(_char);
@@ -759,7 +778,7 @@
     function stringExt_map(_string, _handler) {
     	var _size = string_length(_string);
     	if _size {
-    		var _i = 0, _new_string = stringMemoryAutoCleaner().concat;
+    		var _i = 0, _new_string = ____system_string_memory____().concat;
     		while (_i++ < _size) _new_string.add(_handler(string_char_at(_string, _i), _i, _string));
     		return _new_string.render();
     	}
@@ -769,7 +788,7 @@
     //
     function stringExt_concat() {
     	if argument_count {
-	    	var _new_string = stringMemoryAutoCleaner().concat, _i = -1;
+	    	var _new_string = ____system_string_memory____().concat, _i = -1;
 	    	while (++_i < argument_count) _new_string.add(argument[_i]);
 	    	return _new_string.render();
     	}
@@ -978,7 +997,7 @@
     		return "";
     	}
     	static replace = function(_substring, _string) {
-    		var _new_string = stringMemoryAutoCleaner().concat;
+    		var _new_string = ____system_string_memory____().concat;
     		if is_string(_string) {
     			var _size = string_length(_string);
     			if _size {
@@ -993,7 +1012,7 @@
     	}
     	static write = function() {
     		if is_undefined(self.__render) {
-    			var _new_string = stringMemoryAutoCleaner().concat;
+    			var _new_string = ____system_string_memory____().concat;
     			var _size = array_length(self.__selector);
     			if _size {
     				var _i = -1, _in, _out;
@@ -1039,11 +1058,6 @@
     		self.selector_set(_param.__selector);
     		self.__render = _param.write();
     	}
-    }
-    
-    //
-    function AutoMemory() constructor {
-    	
     }
     
 #endregion
@@ -1102,7 +1116,7 @@
 	
 	//
 	// https://github.com/YellowAfterlife/GMEdit/wiki/Using-null-conditional-operators
-	function nc_set(_value) {
+	function nc_set(_value) { // full clone
 		global.___nc_val = _value;
 		return !is_undefined(_value) and (_value != noone);
 	}
@@ -1198,4 +1212,6 @@
 #endregion
 
 // TODO fix static-field
-
+// TODO JDoc updata
+// TODO while -> do until -> for optimizate 
+// TODO optimizate
