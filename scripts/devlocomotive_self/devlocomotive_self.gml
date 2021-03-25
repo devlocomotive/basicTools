@@ -1,7 +1,7 @@
 
 // 16.03.2021
 
-//!#import self.* as this
+//!#import self.* in this
 
 //
 function self_create(_key) {

@@ -3,5 +3,5 @@
     "linterPrefs": {
         
     },
-    "templateStringScript": "templateRender"
+    "templateStringScript": "templateStringRender"
 }

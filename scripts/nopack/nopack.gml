@@ -214,3 +214,101 @@
 	}
 	
 #endregion
+
+#region GL-Class
+
+	//
+	function GL_StringConcatDepth() {
+		static _base = function() {
+			var _base = {};
+			with _base {
+				self.__release_size = 1024;
+				self.__buffer = new Buf(self.__release_size, Buf.grow, 1);
+				self.__loan_stack = [];
+				self.__loan_stack_size = 0;
+				self.__loan_current = undefined;
+				self.__scalpel_id = 0;
+				self.__release = function() {
+					if (self.__loan_stack_size--) {
+						Arr.resize(self.__loan_stack, self.__loan_stack_size);
+						if self.__loan_stack_size {
+							self.__loan_current = self.__loan_stack[self.__loan_stack_size - 1];
+							exit;
+						}
+						Buf.resize(self.__buffer, self.__release_size);
+						exit;
+					}
+					throw "";
+				}
+				self.loan = function(_hook_mode) {
+					self.__loan_stack_size += 1;
+					self.__loan_current = {
+						alignment: Buf.tell(self.__buffer),
+						hook: false,
+						mode: bool(_hook_mode),
+						mode_check: self.__loan_stack_size > 1 ? self.__loan_current : undefined,
+						id: self.__scalpel_id,
+					}
+					if (++self.__scalpel_id > 1024) self.__scalpel_id = 0;
+					Arr.push(self.__loan_stack, self.__loan_current);
+					return self;
+				}
+				self.mode = function(_hook_mode) {
+					self.__loan_current.mode = bool(_hook_mode);
+					return self;
+				}
+				self.add = function(_string) {
+					Buf.write(self.__buffer, Buf.text, _string);
+					return self;
+				}
+				self.push = function() {
+					var _i = -1;
+					while (++_i < argument_count) Buf.write(self.__buffer, Buf.text, argument[_i]);
+					return self;
+				}
+				self.soak = function(_food) {
+					if is_struct(_food) {
+						if !Obj.exists(_food, "__buffer") throw "";
+						_food = _food.__buffer;
+					}
+					Buf.copy(_food, 0, Buf.tell(_food), self.__buffer, Buf.tell(self.__buffer));
+					return self;
+				}
+				self.hook = function(_mode) {
+					self.__loan_current.hook = _mode;
+					return self;
+				}
+				self.render = function() {
+					var _buff = self.__buffer, _alig = self.__loan_current.alignment;
+					Buf.write(_buff, Buf.u8, 0);
+					Buf.seek(_buff, Buf.seek_start, _alig);
+					var _render = Buf.peek(_buff, _alig, Buf.string);
+					Buf.poke(_buff, _alig, Buf.u8, 0);
+					self.__release();
+					return _render;
+				}
+				self.blur = function() {
+					var _curr = self.__loan_current;
+					if _curr.hook {
+						if !is_undefined(_curr.mode_check) and _curr.mode_check.mode {
+							self.__release();
+							return undefined;
+						}
+						throw "";
+					}
+					return self.render();
+				}
+				self.id_get = function() {
+					return self.__loan_current.id;
+				}
+				self.id_check = function(_id) {
+					if (_id != self.__loan_current.id) throw "";
+					return self;
+				}
+			}
+			return _base;
+		}();
+		return _base;
+	}
+	
+#endregion

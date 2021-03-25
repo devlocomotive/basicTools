@@ -730,11 +730,11 @@
     		return _result;
     	}
     	if is_array(_selector)
-    		self._temp_selector.selector_set(_selector);
+    		_temp_selector.selector_set(_selector);
     	else if is_string(_selector)
-    		self._temp_selector.add(_selector);
-    	var _result = self._temp_selector.mode_set(_mode).filter(_string);
-    	self._temp_selector.clear();
+    		_temp_selector.add(_selector);
+    	var _result = _temp_selector.mode_set(_mode).filter(_string);
+    	_temp_selector.clear();
     	return _result;
     }
     
@@ -742,7 +742,7 @@
     function stringExt_filter(_string, _predicate) {
     	var _size = string_length(_string);
     	if _size {
-    		var _i = 0, _char, _new_string = GL_StringConcat().enable();
+    		var _i = 0, _char, _new_string = stringMemoryAutoCleaner().concat;
     		while (_i++ < _size) {
     			_char = string_char_at(_string, _i);
     			if _predicate(_char, _i, _string) _new_string.add(_char);
@@ -756,7 +756,7 @@
     function stringExt_map(_string, _handler) {
     	var _size = string_length(_string);
     	if _size {
-    		var _i = 0, _new_string = GL_StringConcat().enable();
+    		var _i = 0, _new_string = stringMemoryAutoCleaner().concat;
     		while (_i++ < _size) _new_string.add(_handler(string_char_at(_string, _i), _i, _string));
     		return _new_string.render();
     	}
@@ -766,7 +766,7 @@
     //
     function stringExt_concat() {
     	if argument_count {
-	    	var _new_string = GL_StringConcat().enable(), _i = -1;
+	    	var _new_string = stringMemoryAutoCleaner().concat, _i = -1;
 	    	while (++_i < argument_count) _new_string.add(argument[_i]);
 	    	return _new_string.render();
     	}
@@ -775,83 +775,49 @@
 
 #endregion
 
-#region string-template
+#region template-string
 	
     //
-    function templateRender(_format) {
-    	static _memory = ____template_interface____();
-    	if variable_struct_exists(_memory.map, _format) {
-			var _pack = variable_struct_get(_memory.map, _format);
-			_pack.ref.lifetime = _memory.lifetime; _pack = _pack.stack;
-    		var _new_string = GL_StringConcat().enable(), _size = array_length(_pack), _text, _i = -1, _argument = 1;
+    function templateStringRender(_format) {
+    	static _memory = ____system_string_memory____();
+    	if _memory.exists(_format) {
+			var _stack = _memory.stack(), _size = array_length(_stack);
+    		var _concat = _memory.concat, _text, _i = -1, _argument = 1;
     		while (++_i < _size) {
-    			_text = _pack[_i];
-    			_new_string.add(is_string(_text) ? _text : string(argument[_argument++]));
-    		} show_message("hi");
-    		return _new_string.render();
+    			_text = _stack[_i];
+    			_concat.add(is_string(_text) ? _text : string(argument[_argument++]));
+    		}
+    		return _memory.updata();
     	}
     	var _size = string_length(_format);
     	if _size {
-    		var _i = 0, _j = 1, _new_string = GL_StringConcat().enable(), _length, _text, _counter = 1, _savemem = [];
+    		var _i = 0, _j = 1, _concat = _memory.concat, _length, _text, _argument = 1, _savemem = [];
     		while (_i++ < _size)
     			if (string_char_at(_format, _i) == "%") {
     				_length = _i - _j;
     				if _length {
     					_text = string_copy(_format, _j, _length);
     					array_push(_savemem, _text);
-    					_new_string.add(_text);
+    					_concat.add(_text);
     				}
     				_j = _i + 1;
-    				_new_string.add(string(argument[_counter++]));
+    				_concat.add(string(argument[_argument++]));
     				array_push(_savemem, undefined);
     			}
-    		if (_counter == 1) {
-    			_new_string.disable();
+    		if (_argument == 1) {
+    			_concat.clear();
     			return _format;
     		}
     		_length = _i - _j;
     		if _length {
     			_text = string_copy(_format, _j, _length);
 				array_push(_savemem, _text);
-				_new_string.add(_text);
+				_concat.add(_text);
     		}
-    		var _ref_id = {id: _memory.count, stack: _savemem};
-    		var _ref_fm = {lifetime: _memory.lifetime, key: _format};
-    		_ref_id.ref = _ref_fm;
-    		_ref_fm.ref = _ref_id;
-    		variable_struct_set(_memory.map, _format, _ref_id);
-			variable_struct_set(_memory, _memory.count++, _ref_fm);
-    		return _new_string.render();
+    		return _memory.create(_format, _savemem);
     	}
     	return "";
     }
-    
-	//
-	function templateCleaner() {
-		static _memory = ____template_interface____();
-		var _i = 0, _pack = variable_struct_get(_memory, 0);
-		while (_i < _memory.count) {
-			if (_pack.lifetime-- < 0) {
-				variable_struct_remove(_memory.map, _pack.key);
-				_pack = variable_struct_get(_memory, --_memory.count);
-				_pack.ref.id = _i;
-				variable_struct_set(_memory, _i, _pack);
-				variable_struct_remove(_memory, _memory.count);
-				continue;
-			}
-			_pack = variable_struct_get(_memory, ++_i);
-		}
-	}
-	
-	//
-	function ____template_interface____() {
-		static _interface = {
-			lifetime: 4,
-			count: 0,
-			map: {},
-		}
-		return _interface;
-	}
 
 #endregion
 
@@ -883,93 +849,6 @@
 #region Class
 	
 	//
-	function GL_StringConcat() {
-		static _base = function() {
-			var _base = {};
-			with _base {
-				self.__temp_size = -1;
-				self.__size_default = 512;
-				self.__busy = false;
-				self.__statistics = {
-					size: self.__size_default,
-					sizeStack: self.__size_default,
-					sizeIterate: 1,
-				}
-				self.__buffer = buffer_create(self.__size_default, buffer_grow, 1);
-				self.__interface = {};
-				self.__interface.add = function(_string) {
-					buffer_write(self.__buffer, buffer_text, _string);
-					return undefined;
-				}
-				self.__interface.push = function() {
-					var _i = -1;
-					while (++_i < argument_count) buffer_write(self.__buffer, buffer_text, argument[_i]);
-					return undefined;
-				}
-				self.__interface.render = function() {
-					var _buff = self.__buffer;
-					buffer_write(_buff, buffer_u8, 0);
-					buffer_seek(_buff, buffer_seek_start, 0);
-					var _render = buffer_read(_buff, buffer_string);
-					with self.__statistics {
-						self.sizeStack += buffer_tell(_buff);
-						self.sizeIterate += 1;
-						self.size = buffer_get_size(_buff);
-						var _size_midd = self.sizeStack div self.sizeIterate;
-						var _size_diff = abs(self.size - _size_midd);
-						if (1 - _size_diff / self.size > 0.35) {
-							self.size = _size_midd;
-							buffer_resize(_buff, _size_midd);
-						} 
-						if (self.sizeStack > 4294967296) {
-							self.sizeStack = self.size;
-							self.sizeIterate = 1;
-						}
-					}
-					buffer_seek(_buff, buffer_seek_start, 0);
-					self.__busy = false;
-					return _render;
-				}
-				self.__interface.clear = function() {
-					buffer_seek(self.__buffer, buffer_seek_start, 0);
-					buffer_resize(self.__buffer, self.__temp_size);
-					return self.__interface;
-				}
-				self.__interface.disable = function() {
-					self.__interface.clear();
-					self.__busy = false;
-					return self;
-				}
-				self.enable = function() {
-					if self.__busy throw "";
-					self.__busy = true;
-					self.__temp_size = buffer_get_size(self.__buffer);
-					return self.__interface;
-				}
-				self.reset = function() {
-					if self.__busy throw "";
-					var _size = self.__size_default;
-					with self.__statistics {
-						self.size = _size;
-						self.sizeStack = _size;
-						self.sizeIterate = 1;
-					}
-					buffer_resize(self.__buffer, _size);
-				}
-				self.free = function() {
-					if self.__busy throw "";
-					buffer_delete(self.__buffer);
-					structExt_remove(self.__interface, undefined);
-					structExt_remove(self, undefined);
-					return undefined;
-				}
-			}
-			return _base;
-		}();
-		return _base;
-	}
-	
-	//
 	function StringConcat(_size) constructor {
 		self.__buffer = buffer_create(is_undefined(_size) ? 256 : _size, buffer_grow, 1);
 		static add = function(_string) {
@@ -981,14 +860,28 @@
 			while (++_i < argument_count) buffer_write(self.__buffer, buffer_text, argument[_i]);
 			return self;
 		}
-		static render = function(_delete) {
+		static soak = function(_food) {
+			if is_struct(_food) {
+				if !variable_struct_exists(_food, "__buffer") throw "";
+				_food = _food.__buffer;
+			}
+			buffer_copy(_food, 0, buffer_tell(_food), self.__buffer, buffer_tell(self.__buffer));
+			return self;
+		}
+		static render = function(_delete, _clear) {
 			if is_undefined(_delete) _delete = true;
-			if !_delete var _writer = buffer_tell(self.__buffer);
+			if !_delete var _writer = !_clear ? 0 : buffer_tell(self.__buffer);
 			buffer_write(self.__buffer, buffer_u8, 0);
 			buffer_seek(self.__buffer, buffer_seek_start, 0);
 			var _string = buffer_read(self.__buffer, buffer_string);
 			if !_delete buffer_seek(self.__buffer, buffer_seek_start, _writer) else self.destroy();
 			return _string;
+		}
+		static blur = function(_food) {
+			if is_undefined(_food) return self.render(true, false);
+			buffer_copy(self.__buffer, 0, buffer_tell(self.__buffer), _food, buffer_tell(_food));
+			self.destroy();
+			return undefined;
 		}
 		static clear = function(_newsize) {
 			buffer_seek(self.__buffer, buffer_seek_start, 0);
@@ -1128,7 +1021,7 @@
     		return "";
     	}
     	static replace = function(_substring, _string) {
-    		var _new_string = GL_StringConcat().enable();
+    		var _new_string = stringMemoryAutoCleaner().concat;
     		if is_string(_string) {
     			var _size = string_length(_string);
     			if _size {
@@ -1143,7 +1036,7 @@
     	}
     	static write = function() {
     		if is_undefined(self.__render) {
-    			var _new_string = GL_StringConcat().enable();
+    			var _new_string = stringMemoryAutoCleaner().concat;
     			var _size = array_length(self.__selector);
     			if _size {
     				var _i = -1, _in, _out;
@@ -1163,7 +1056,7 @@
 			return self.clear().add(_string_selector);
 		}
     	static clone = function() {
-    		var _new_selector = new StringConcat(undefined);
+    		var _new_selector = new StringSelector(undefined);
     		_new_selector.__selector = self.selector_get();
     		_new_selector.__render = self.write();
     		_new_selector.mode = self.mode;
@@ -1191,9 +1084,97 @@
     	}
     }
     
+    //
+    function AutoMemory() constructor {
+    	
+    }
+    
+#endregion
+
+#region system
+	
+	//
+	function stringMemoryAutoCleaner() {
+		static _memory = ____system_string_memory____();
+		var _i = 0, _pack = variable_struct_get(_memory, "0");
+		while (_i < _memory.count) {
+			if (_pack.lifetime-- < 0) {
+				variable_struct_remove(_memory.map, _pack.key);
+				_pack = variable_struct_get(_memory, string(--_memory.count));
+				_pack.ref.id = string(_i);
+				variable_struct_set(_memory, string(_i), _pack);
+				variable_struct_remove(_memory, string(_memory.count));
+				continue;
+			}
+			_pack = variable_struct_get(_memory, string(++_i));
+		}
+		if (_memory.sizeTimeout >= 0) and (--_memory.sizeTimeout == -1) {
+			var _size_crop = round(_memory.size * 0.65);
+			if (_size_crop > 1024) {
+				buffer_resize(_memory.concat.__buffer, _size_crop);
+				_memory.sizeTimeout = 12;
+				exit;
+			}
+			buffer_resize(_memory.concat.__buffer, 1024);
+		}
+		_memory.autoCastTime = 450;
+	}
+	
+	//
+	function ____system_string_memory____() {
+		static _interface = {
+			autoCastTime: 450,
+			concat: new StringConcat(1024),
+			lifetime: 4,
+			count: 0,
+			map: {},
+			size: 1024,
+			sizeTimeout: -1,
+			updata: function() {
+				var _newsize = buffer_tell(self.concat.__buffer);
+				if (_newsize >= self.size) {
+					self.size = _newsize;
+					self.sizeTimeout = 12;
+				}
+				if (autoCastTime-- < 0) stringMemoryAutoCleaner();
+				return self.concat.render(false);
+			},
+			create: function(_format, _savemem) {
+				var _ref_id = {id: self.count, stack: _savemem};
+	    		var _ref_fm = {lifetime: self.lifetime, key: _format};
+	    		_ref_id.ref = _ref_fm;
+	    		_ref_fm.ref = _ref_id;
+	    		variable_struct_set(self.map, _format, _ref_id);
+				variable_struct_set(self, string(self.count++), _ref_fm);
+				return self.updata();
+			},
+			exists: function(_format) {
+				self.__stack = variable_struct_get(self.map, _format);
+				return !is_undefined(self.__stack);
+			},
+			__stack: undefined,
+			stack: function() {
+				var _stack = self.__stack.stack;
+				self.__stack.ref.lifetime = self.lifetime;
+				self.__stack = undefined;
+				return _stack;
+			},
+			interface: function() {
+				return self.concat;
+			}
+		}
+		return _interface;
+	}
 	
 #endregion
 
+#region
+
+#endregion
+
+#region --init
+
+#endregion
 
 // TODO fix static-field
 
