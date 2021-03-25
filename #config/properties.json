@@ -3,5 +3,7 @@
     "linterPrefs": {
         
     },
-    "templateStringScript": "templateStringRender"
+    "nullConditionalSet": "nc_set",
+    "nullConditionalVal": "nc_val",
+    "templateStringScript": "sfmt"
 }

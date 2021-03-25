@@ -1,6 +1,9 @@
 
+
 // 16.03.2021
-// 24.03.2021
+// 26.03.2021
+
+// devlocomotive_basic
 
 /// GMEdit
 /// https://github.com/YellowAfterlife/GMEdit/wiki
@@ -775,52 +778,6 @@
 
 #endregion
 
-#region template-string
-	
-    //
-    function templateStringRender(_format) {
-    	static _memory = ____system_string_memory____();
-    	if _memory.exists(_format) {
-			var _stack = _memory.stack(), _size = array_length(_stack);
-    		var _concat = _memory.concat, _text, _i = -1, _argument = 1;
-    		while (++_i < _size) {
-    			_text = _stack[_i];
-    			_concat.add(is_string(_text) ? _text : string(argument[_argument++]));
-    		}
-    		return _memory.updata();
-    	}
-    	var _size = string_length(_format);
-    	if _size {
-    		var _i = 0, _j = 1, _concat = _memory.concat, _length, _text, _argument = 1, _savemem = [];
-    		while (_i++ < _size)
-    			if (string_char_at(_format, _i) == "%") {
-    				_length = _i - _j;
-    				if _length {
-    					_text = string_copy(_format, _j, _length);
-    					array_push(_savemem, _text);
-    					_concat.add(_text);
-    				}
-    				_j = _i + 1;
-    				_concat.add(string(argument[_argument++]));
-    				array_push(_savemem, undefined);
-    			}
-    		if (_argument == 1) {
-    			_concat.clear();
-    			return _format;
-    		}
-    		_length = _i - _j;
-    		if _length {
-    			_text = string_copy(_format, _j, _length);
-				array_push(_savemem, _text);
-				_concat.add(_text);
-    		}
-    		return _memory.create(_format, _savemem);
-    	}
-    	return "";
-    }
-
-#endregion
-
 #region metwrap
     
     /// @function runFor([run=factory_data(), class=undefined]);
@@ -1091,6 +1048,67 @@
     
 #endregion
 
+#region [convenient in gmedit] template-string
+	
+    //
+    // https://github.com/YellowAfterlife/GMEdit/wiki/Using-template-strings
+    function sfmt(_format) { // full clone + memory controller
+    	static _memory = ____system_string_memory____();
+    	if _memory.exists(_format) {
+			var _stack = _memory.stack(), _size = array_length(_stack);
+    		var _concat = _memory.concat, _text, _i = -1, _argument = 1;
+    		while (++_i < _size) {
+    			_text = _stack[_i];
+    			_concat.add(is_string(_text) ? _text : string(argument[_argument++]));
+    		}
+    		return _memory.updata();
+    	}
+    	var _size = string_length(_format);
+    	if _size {
+    		var _i = 0, _j = 1, _concat = _memory.concat, _length, _text, _argument = 1, _savemem = [];
+    		while (_i++ < _size)
+    			if (string_char_at(_format, _i) == "%") {
+    				_length = _i - _j;
+    				if _length {
+    					_text = string_copy(_format, _j, _length);
+    					array_push(_savemem, _text);
+    					_concat.add(_text);
+    				}
+    				_j = _i + 1;
+    				_concat.add(string(argument[_argument++]));
+    				array_push(_savemem, undefined);
+    			}
+    		if (_argument == 1) {
+    			_concat.clear();
+    			return _format;
+    		}
+    		_length = _i - _j;
+    		if _length {
+    			_text = string_copy(_format, _j, _length);
+				array_push(_savemem, _text);
+				_concat.add(_text);
+    		}
+    		return _memory.create(_format, _savemem);
+    	}
+    	return "";
+    }
+
+#endregion
+
+#region [convenient in gmedit] null-conditional (operators + assignment)
+	
+	//
+	#macro nc_val global.___nc_val
+	
+	//
+	// https://github.com/YellowAfterlife/GMEdit/wiki/Using-null-conditional-operators
+	function nc_set(_value) {
+		global.___nc_val = _value;
+		return !is_undefined(_value) and (_value != noone);
+	}
+
+#endregion
+
 #region system
 	
 	//
@@ -1119,6 +1137,10 @@
 		}
 		_memory.autoCastTime = 450;
 	}
+	
+#endregion
+
+#region --hide system
 	
 	//
 	function ____system_string_memory____() {
@@ -1166,14 +1188,13 @@
 		return _interface;
 	}
 	
-#endregion
-
-#region
-
-#endregion
-
-#region --init
-
+	//
+	var _buffer = ____system_string_memory____().concat.__buffer;
+	AfterGame_add(_buffer, function(_buffer) {
+		buffer_delete(_buffer);
+		show_debug_message(">> devlocomotive_basic: auto free memory");
+	}, undefined);
+	
 #endregion
 
 // TODO fix static-field
