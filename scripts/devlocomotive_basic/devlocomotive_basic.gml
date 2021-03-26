@@ -18,60 +18,79 @@
 //!#import "#import-devlocomotive_basic"
 
 // >> what is in the import file
-// #import arrayExt.*  in ArrExt
-// #import structExt.* in ObjExt
-// #import stringExt.* in StrExt
-// #import factory.*   in Fact
+// #import arrayExt.*         in ArrExt
+// #import structExt.*        in ObjExt
+// #import stringExt.*        in StrExt
+// #import generator_method.* in GenMet
 // <<
 
-#region factory-method
-    
-    /// @function factory_data([-1=[]|0=undefined|1={}=0]);
+#region generator-method
+	
+	//
+	#macro GENERATOR_ARRAY        generator_method_data(-1)
+	#macro GENERATOR_UNDEF        generator_method_data(0)
+	#macro GENERATOR_OBJCT        generator_method_data(1)
+	#macro GENERATOR_FST          generator_method_get(0)
+	#macro GENERATOR_LST          generator_method_get(1)
+	#macro GENERATOR_CAST_BUNG    generator_method_bung
+	#macro GENERATOR_CAST_EROR    generator_method_error
+	#macro GENERATOR_CAST_RUNN    generator_method_runner
+	
+    /// @function generator_method_data([-1=[]|0=undefined|1={}=0]);
     /// @param [-1=[]|0=undefined|1={}=0] {sign}
     /// @returns {method}
-    function factory_data(_type_) { // rename -> generator
+    function generator_method_data(_array_undefined_struct_) {
         static _data_type =
             [ method(undefined, function() {return []})
             , method(undefined, function() {return undefined})
             , method(undefined, function() {return {}})
             ];
-        if !is_real(_type_) return _data_type[1];
-        return _data_type[sign(_type_) + 1];
+        if is_undefined(_array_undefined_struct_) return _data_type[1];
+        try {
+        	return _data_type[_array_undefined_struct_ + 1];
+        } catch(_) {
+        	throw "TODOTHROW";
+        }
     }
     
-    /// @function factory_get([0=fst|1=lst=0]);
+    /// @function generator_method_get([0=fst|1=lst=0]);
     /// @param [0=fst|1=lst=0] {buffer_bool}
     /// @returns {method}
-    function factory_get(_fst_lst_) { // rename -> getter
+    function generator_method_get(_fst_lst_) {
         static _get_type =
-            [ method(undefined, function() {if argument_count return argument[0]                  else show_error("requires at least one argument 'fst'", true)})
-            , method(undefined, function() {if argument_count return argument[argument_count - 1] else show_error("requires at least one argument 'lst'", true)})
+            [ method(undefined, function() {return argument[0]})
+            , method(undefined, function() {return argument[argument_count - 1]})
             ];
-        return _get_type[buffer_bool(_fst_lst_)];
+        if is_undefined(_fst_lst_) return _get_type[0];
+        try {
+        	return _get_type[_fst_lst_];
+        } catch(_) {
+        	throw "TODOTHROW";
+        }
     }
     
-    /// @function factory_bung(value);
+    /// @function generator_method_bung(value);
     /// @param value {any}
     /// @returns {method}
-    function factory_bung() {
+    function generator_method_bung() {
         static _met = method_get_index(function() {
-			return _val;
+			return self._val;
 		});
 		return method({_val : argument[0]}, _met);
     }
     
-    /// @function factory_error(message);
+    /// @function generator_method_error(message);
     /// @param {buffer_string} message {buffer_string}
     /// @returns {method}
-    function factory_error() {
+    function generator_method_error() {
         static _met = method_get_index(function() {
-    	    show_error(_error, true);
+    	    show_error(self._error, true);
 		});
 		return method({_error : argument[0]}, _met);
     }
 	
 	//
-	function factory_runner(_arguments, _bindfor, _code) {
+	function generator_method_runner(_arguments, _function) {
 		static _runner = method_get_index(function() {
 			var _arguments = self._arguments;
 			if argument_count {
@@ -83,9 +102,13 @@
 				} until (_i == _j--);
 			}
 			if is_undefined(self._bind) return script_execute_ext(self._code, _arguments);
+			if is_real(self._bind) and !instance_exists(self._bind) throw "TODOTHROW";
 			with self._bind return script_execute_ext(self._code, _arguments);
 		});
-		if is_method(_code) _code = method_get_index(_code);
+		var _code = get_function(_function, true);
+		if (_code == -1) throw "TODOTHROW";
+		var _bindfor = argument_count > 2 ? argument[2] : (is_method(_function) ? method_get_self(_function) : undefined);
+		if is_undefined(_arguments) _arguments = [];
 		return method({_bind: _bindfor, _code: _code, _arguments: _arguments}, _runner);
 	}
 	
@@ -108,7 +131,7 @@
     function arrayExt_set(_dest, _src) {
         var _size = array_length(_src);
         array_resize(_dest, _size);
-        array_copy(_dest, 0, _src, 0, _size);
+        if _size array_copy(_dest, 0, _src, 0, _size);
         return _dest;
     }
     
@@ -125,7 +148,7 @@
     /// @returns {<array>}
     function arrayExt_reverse(_array, _build_modify_) {
     	var _size = array_length(_array);
-    	if !is_undefined(_build_modify_) and !_build_modify_ {
+    	if !is_undefined(_build_modify_) and !_build_modify_ { // build-block
     		var _new_array = array_create(_size);
     		if (_size > 1) {
     			var _i = -1;
@@ -133,7 +156,7 @@
     		}
     		return _new_array;
     	}
-        if (_size > 1) {
+        if (_size > 1) { // modify-block
             var _swap, _i = -1;
             repeat (_size div 2) {
                 _swap = array_get(_array, ++_i);
@@ -149,7 +172,7 @@
     /// @param [0=build|1=modify=1] {buffer_bool}
     /// @returns {<array>}
     function arrayExt_shuffle(_array, _build_modify_) {
-    	if !is_undefined(_build_modify_) and !_build_modify_ _array = arrayExt_clone(_array);
+    	if !is_undefined(_build_modify_) and !_build_modify_ _array = arrayExt_clone(_array); // modify-mode
         var _size = array_length(_array);
         if (_size > 1) {
             var _i = -1, _swap, _j;
@@ -169,7 +192,7 @@
     /// @param value {any}
     /// @returns {buffer_bool}
     function arrayExt_exists(_array, _value) {
-        return arrayExt_index(_array, _value) != -1;
+        return (arrayExt_index(_array, _value) != -1);
     }
 	
     /// @function arrayExt_index(array, value, [0=left|1=right=0, index=auto, step=1]);
@@ -181,62 +204,53 @@
     /// @param step=1]           {number}
     /// @returns {number}
     function arrayExt_index(_array, _value, _left_right_, _index, _step) {
-        static _equal_predicate = {
-        	_check_left : undefined,
-        	_predicate : method_get_index(function(_check_right) {
-        		return self._check_left == _check_right;
-        	}),
-        }
-    	_equal_predicate._check_left = _value;
-        return arrayExt_find(_array, _equal_predicate._predicate, _left_right_, _index, _step);
+        _value = arrayExt_find(_array, ____system_predicate_equal____(_value), _left_right_, _index, _step);
+        ____system_predicate_equal____();
+        return _value;
     }
 	
-    /// @function arrayExt_range(array, index, [<0=length|>0=index=indexLast]);
-    /// @description
-    /// @param array                           {array<any>}
-    /// @param index                           {number}
-    /// @param [<0=length|>=0=index=indexLast] {number}
-    /// @returns {array<any>}
-    function arrayExt_range(_array, _index, _length_index_) {
-        // _length_index_ < 0 -> length
-        // _length_index_ >= 0 -> index
-        var _range = [], _length = array_length(_array);
-        if is_undefined(_index) _index = 0;
-        if (_index < 0) or (_index > _length - 1) return _range;
-        if is_undefined(_length_index_) _length_index_ = -_length;
-        if (_length_index_ >= 0) {
-            if (_length_index_ < _index) return _range;
-            _length_index_ = min(_length_index_, _length - 1) - _index + 1;
-        } else _length_index_ = min(_length_index_, _length - _index);
-        while (_length_index_--) array_set(_range, _length_index_, array_get(_array, _length_index_ + _index));
-        return _range;
-    }
+	//
+	function arrayExt_range_count(_array, _index, _count) {
+		var _range = [], _size = array_length(_array);
+		if _size {
+			if is_undefined(_index) {
+				_index = 0;
+				if (_index > _size - 1) return _range;
+			} else if (_index < 0) or (_index > _size - 1) return _range;
+			while (_count--) array_set(_range, _count, array_get(_array, _count + _index));
+		}
+		return _range;
+	}
+	
+	//
+	function arrayExt_range_pos(_array, _index1, _index2) {
+		return arrayExt_range_count(_array, _index1, _index2 - _index1 + 1);
+	}
     
-    /// @function arrayExt_empty(array, index, count);
+    /// @function arrayExt_empty(array, index, count, [value]);
     /// @param array {array<any>}
     /// @param index {number}
     /// @param count {number}
+    /// @param [value] {number}
     /// @returns {buffer_bool}
     function arrayExt_empty(_array, _index, _count) {
-        if (_index >= 0) {
-            if _count {
-                var _length = array_length(_array), _size = _length - _index, _bool = (_size > 0);
-                array_resize(_array, max(_length, _index + _count));
-                if _bool {
-                    var _shift = _index + _count;
-                    while (_size--) array_set(_array, _size + _index, array_get(_array, _size + _shift));
-                }
-                if (argument_count > 3) {
-                    if _bool {
-                        while (_count--) array_set(_array, _index + _count, argument[3]);
-                        return true;
-                    }
-                    _size = array_length(_array);
-                    _length -= 1;
-                    while (++_length < _size) array_set(_array, _length, argument[3]);
-                }
-                return true;
+        if (_index >= 0) and _count {
+            var _length = array_length(_array), _size = _length - _index, _bool = (_size > 0);
+            array_resize(_array, max(_length, _index + _count));
+            if _bool {
+                var _shift = _index + _count;
+                while (_size--) array_set(_array, _size + _index, array_get(_array, _size + _shift));
             }
+            if (argument_count > 3) {
+                if _bool {
+                    while (_count--) array_set(_array, _index + _count, argument[3]);
+                    return true;
+                }
+                _size = array_length(_array);
+                _length -= 1;
+                while (++_length < _size) array_set(_array, _length, argument[3]);
+            }
+            return true;
         }
         return false;
     }
@@ -250,7 +264,7 @@
             array_delete(_array, 0, 1);
             return _value;
         }
-        throw "";
+        throw "TODOTHROW";
     }
     
     /// @function arrayExt_unshift(array, ...values);
@@ -279,7 +293,7 @@
         return _array;
     }
     
-    /// @function arrayExt_place(array, range);
+    /// @function arrayExt_remove(array, range);
     /// @param array {array<any>}
     /// @param range {array<number>}
     /// @returns {number}
@@ -289,13 +303,13 @@
         if _array_length and _range_length {
             _range = arrayExt_clone(_range);
             array_sort(_range, true);
-            var _temp = [], _i = -1; _array_length -= 1;
-            while (++_i < _range_length) {
-                _value = _range[_i];
+            var _temp = [], _i = 0; _array_length -= 1;
+            do {
+            	_value = _range[_i];
                 if (_value > _array_length) break;
                 if (_value < 0) continue;
                 array_push(_temp, _array[_value]);
-            }
+            } until (++_i == _range_length);
             var _size = array_length(_temp);
             if _size {
                 arrayExt_set(_array, _temp);
@@ -324,12 +338,14 @@
                 if (_dest == _src) {
                     if (_dest_index == _src_index) return _dest;
                     if (_dest_index > _src_index) {
-                        while (_length--) array_set(_dest, _length + _dest_index, array_get(_src, _length + _src_index));
+                    	while (_length--) array_set(_dest, _length + _dest_index, array_get(_src, _length + _src_index));
                         return _dest;
                     }
                 }
-                var _i = -1;
-                while (++_i < _length) array_set(_dest, _i + _dest_index, array_get(_src, _i + _src_index));
+                var _i = 0;
+                do {
+                	array_set(_dest, _i + _dest_index, array_get(_src, _i + _src_index));
+                } until (++_i == _length);
             }
         }
         return _dest;
@@ -376,13 +392,17 @@
     /// @returns {array<any>/<array>}
     function arrayExt_map(_array, _handler, _build_apply_modify_) {
         _build_apply_modify_ = is_real(_build_apply_modify_) ? sign(_build_apply_modify_) : 0;
-        var _i = -1, _size = array_length(_array);
+        var _i = 0, _size = array_length(_array);
         if (_build_apply_modify_ != 0) {
             var _arModify = _build_apply_modify_ ? array_create(_size) : _array;
-            while (++_i < _size) array_set(_arModify, _i, _handler(array_get(_array, _i), _i, _array));
+            do {
+            	array_set(_arModify, _i, _handler(array_get(_array, _i), _i, _array));
+            } until (++_i == _size);
             return _arModify;
         }
-        while (++_i < _size) _handler(array_get(_array, _i), _i, _array);
+        do {
+	    	_handler(array_get(_array, _i), _i, _array);
+	    } until (++_i == _size);
         return _array;
     }
     
@@ -394,11 +414,11 @@
     function arrayExt_filter(_array, _predicate, _build_modify_) {
         var _size = array_length(_array), _new_array = [];
         if _size {
-            var _i = -1, _value;
-            while (++_i < _size) {
-                _value = _array[_i];
+            var _i = 0, _value;
+            do {
+            	_value = _array[_i];
                 if _predicate(_value, _i, _array) array_push(_new_array, _value);
-            }
+            } until (++_i == _size);
         }
         return _build_modify_ ? arrayExt_set(_array, _new_array) : _new_array;
     }
@@ -457,7 +477,7 @@
                 do {
                     if _predicate(_array[_index], _index, _array) return _index;
                     _index += _step;
-                } until (_index > _size);
+                } until (_index > _size); // if (_size--) {
             }
         }
         return -1;
@@ -472,8 +492,8 @@
         if !_build_modify_ _array = arrayExt_clone(_array);
         if argument_count {
             var _length = array_length(_array);
-            var _i = 1, _value, _size, _point;
-            while (++_i < argument_count) {
+            var _i = 2, _value, _size, _point;
+            do {
                 _value = argument[_i];
                 if is_array(_value) {
                     _size = array_length(_value);
@@ -485,7 +505,7 @@
                     continue;
                 }
                 array_set(_array, _length++, _value);
-            }
+            } until (++_i == argument_count);
         }
         return _array;
     }
@@ -497,9 +517,10 @@
     function arrayExt_every(_array, _predicate) {
         var _size = array_length(_array);
         if _size {
-            var _i = -1;
-            while (++_i < _size)
-                if !_predicate(_array[_i], _i, _array) return false;
+            var _i = 0;
+            do {
+            	if !_predicate(_array[_i], _i, _array) return false;
+            } until (++_i == _size);
         }
         return true;
     }
@@ -511,9 +532,10 @@
     function arrayExt_some(_array, _predicate) {
         var _size = array_length(_array);
         if _size {
-            var _i = -1;
-            while (++_i < _size)
-                if _predicate(_array[_i], _i, _array) return true;
+        	var _i = 0;
+            do {
+            	if _predicate(_array[_i], _i, _array) return true;
+            } until (++_i == _size);
         }
         return false;
     }
@@ -546,15 +568,29 @@
     /// @returns {<where>}
     function structExt_copy(_where, _from, _replace, _names, _handler) {
         var _exists = false;
-        if is_undefined(_replace) _replace = true;
-        if is_undefined(_names)   {_names = variable_struct_get_names(_from); _exists = true};
-        if is_undefined(_handler) _handler = factory_get();
-        var _size = array_length(_names), _i = -1, _key;
-        while (++_i < _size) {
-            _key = _names[_i];
-            if (_exists or variable_struct_exists(_from, _key))
-            and (_replace or !variable_struct_exists(_where, _key))
-                variable_struct_set(_where, _key, _handler(variable_struct_get(_from, _key)));
+        if is_undefined(_names) {
+        	_names = variable_struct_get_names(_from);
+        	if _replace {
+        		var _i = 0, _key;
+        		do {
+        			_key = _names[_i];
+        			variable_struct_set(_where, _key, _handler(variable_struct_get(_from, _key), _key, _from));
+        		} until (++_i == _size);
+        		return _where;
+        	}
+        	_exists = true;
+        }
+        var _size = array_length(_names);
+        if _size {
+        	if is_undefined(_replace) _replace = true;
+        	if is_undefined(_handler) _handler = GENERATOR_FST;
+        	var _i = 0, _key;
+        	do {
+        		_key = _names[_i];
+	            if (_exists or variable_struct_exists(_from, _key))
+	            and (_replace or !variable_struct_exists(_where, _key))
+	                variable_struct_set(_where, _key, _handler(variable_struct_get(_from, _key), _key, _from));
+        	} until (++_i == _size);
         }
         return _where;
     }
@@ -569,17 +605,19 @@
     /// @returns {<where>}
     function structExt_copyExcept(_where, _from, _replace, _namesExcept, _handler) {
     	if is_undefined(_namesExcept) return structExt_copy(_where, _from, _replace, undefined, _handler);
-    	if is_undefined(_replace) _replace = true;
-    	if is_undefined(_handler) _handler = factory_get();
-    	_namesExcept = arrayExt_clone(_namesExcept);
-    	var _names = variable_struct_get_names(_from);
-    	var _size = array_length(_names), _i = -1, _key;
-        while (++_i < _size) {
-            _key = _names[_i];
-            if arrayExt_noorder_remove(_namesExcept, _key, true)
-            and (_replace or !variable_struct_exists(_where, _key))
-                variable_struct_set(_where, _key, _handler(variable_struct_get(_from, _key)));
-        }
+    	var _names = variable_struct_get_names(_from), _size = array_length(_names);
+    	if _size {
+    		if is_undefined(_replace) _replace = true;
+    		if is_undefined(_handler) _handler = GENERATOR_FST;
+    		_namesExcept = arrayExt_clone(_namesExcept);
+    		var _i = 0, _key;
+    		do {
+    			_key = _names[_i];
+	            if !arrayExt_noorder_remove(_namesExcept, _key, true)
+	            and (_replace or !variable_struct_exists(_where, _key))
+	                variable_struct_set(_where, _key, _handler(variable_struct_get(_from, _key), _key, _from));
+    		} until (++_i == _size);
+    	}
         return _where;
     }
     
@@ -589,11 +627,14 @@
     /// @param handler {method/function}
     /// @returns {<struct>}
     function structExt_updata(_struct, _handler) {
-        var _names = variable_struct_get_names(_struct), _size = array_length(_names), i = -1, _key;
-        while (++_i < _size) {
-        	_key = _names[_i];
-        	variable_struct_set(_struct, _key, _handler(variable_struct_get(_struct, _key), _key, _struct));
-        }
+    	var _names = variable_struct_get_names(_struct), _size = array_length(_names);
+    	if _size {
+    		var _i = 0, _key;
+    		do {
+    			_key = _names[_i];
+        		variable_struct_set(_struct, _key, _handler(variable_struct_get(_struct, _key), _key, _struct));
+    		} until (++_i == _size);
+    	}
         return _struct;
     }
     
@@ -602,16 +643,39 @@
     /// @param struct {struct}
     /// @param names  {array[buffer_string]}
     /// @returns {number}
-    function structExt_remove(_struct, _names) { // TODO: optimizate
-        if is_undefined(_names) _names = variable_struct_get_names(_struct);
-        if !is_array(_names) _names = [_names];
-        var _size = array_length(_names), _i = -1, _count = 0, _checker = variable_struct_names_count(_struct);
-        while (++_i < _size)
-            if variable_struct_exists(_struct, _names[_i]) {
-                variable_struct_remove(_struct, _names[_i]);
-                if (++_count == _checker) break;
-            }
-        return _count;
+    function structExt_remove(_struct, _names) {
+    	if is_undefined(_names) {
+    		_names = variable_struct_get_names(_struct);
+    		var _size = array_length(_names);
+    		if _size {
+    			var _i = 0;
+    			do {
+    				variable_struct_remove(_struct, _names[_i]);
+    			} until (++_i == _size);
+    			return _size;
+    		}
+    		return 0;
+    	}
+    	if is_array(_names) {
+    		var _size = array_length(_names), _size_struct = variable_struct_names_count(_struct);
+    		if _size and _size_struct {
+    			var _i = 0, _count = 0, _key;
+    			do {
+    				_key = _names[_i];
+    				if variable_struct_exists(_struct, _key) {
+    					variable_struct_remove(_struct, _key);
+    					if (++_count == _size_struct) return _size_struct;
+    				}
+    			} until (++_i == _size);
+    			return _count;
+    		}
+    		return 0;
+    	}
+    	if is_string(_names) and variable_struct_exists(_struct, _names) {
+			variable_struct_remove(_struct, _names);
+			return 1;
+    	}
+    	return 0;
     }
     
     /// @function structExt_leave(struct, names);
@@ -621,14 +685,29 @@
     /// @returns {number}
     function structExt_leave(_struct, _names) {
         if is_undefined(_names) return 0;
-        if !is_array(_names) _names = [_names];
-        var _reader = variable_struct_get_names(_struct), _size = array_length(_reader), _i = -1, _count = 0;
-        while (++_i < _size)
-            if !arrayExt_exists(_names, _reader[_i]) {
-                 variable_struct_remove(_struct, _reader[_i]);
-                _count += 1;
-            }
-        return _count;
+        if !is_array(_names) {
+        	if !is_string(_names) return 0;
+        	_names = [_names];
+        }
+        var _reader = variable_struct_get_names(_struct), _size = array_length(_reader);
+        if _size {
+        	var _i = 0, _count = 0, _key;
+        	do {
+				_key = _reader[_i];
+				if !arrayExt_exists(_names, _key) {
+					variable_struct_remove(_struct, _key);
+					_count += 1;
+				}
+			} until (++_i == _size);
+			return _count;
+        }
+        return 0;
+    }
+    
+    //
+    function structExt_clear(_struct) {
+    	structExt_remove(_struct, undefined);
+    	return _struct;
     }
     
     /// @function structExt_marker(struct, name, runner);
@@ -682,14 +761,9 @@
     
     //
     function structExt_key(_struct, _value) {
-    	static _equal_predicate = {
-        	_check_left : undefined,
-        	_predicate : method_get_index(function(_check_right) {
-        		return self._check_left == _check_right;
-        	}),
-        }
-    	_equal_predicate._check_left = _value;
-        return structExt_find(_struct, _equal_predicate._predicate);
+        _value = structExt_find(_struct, ____system_predicate_equal____(_value));
+        ____system_predicate_equal____();
+        return _value;
     }
     
     //
@@ -731,8 +805,7 @@
     //
     function stringExt_replace_count(_substring, _string, _index, _count) {
     	if (_count <= 0) return string_insert(_substring, _string, _index);
-    	if (_index < 1) or (_index > string_length(_string)) throw "";
-    	_index -= 1;
+    	if (_index < 1) or (_index-- > string_length(_string)) throw "";
     	return stringExt_concat(string_copy(_string, 1, _index), _substring, string_delete(_string, 1, _index + _count));
     }
     
@@ -764,12 +837,12 @@
     function stringExt_filter(_string, _predicate) {
     	var _size = string_length(_string);
     	if _size {
-    		var _i = 0, _char, _new_string = ____system_string_memory____().concat;
-    		while (_i++ < _size) {
+    		var _i = 1, _char, _interface = ____system_string_memory____(), _concat = _interface.concat;
+    		do {
     			_char = string_char_at(_string, _i);
-    			if _predicate(_char, _i, _string) _new_string.add(_char);
-    		}
-    		return _new_string.render();
+    			if _predicate(_char, _i, _string) _concat.add(_char);
+    		} until (_i++ == _size);
+    		return _interface.updata();
     	}
     	return "";
     }
@@ -778,9 +851,11 @@
     function stringExt_map(_string, _handler) {
     	var _size = string_length(_string);
     	if _size {
-    		var _i = 0, _new_string = ____system_string_memory____().concat;
-    		while (_i++ < _size) _new_string.add(_handler(string_char_at(_string, _i), _i, _string));
-    		return _new_string.render();
+    		var _i = 1, _interface = ____system_string_memory____(), _concat = _interface.concat;
+    		do {
+    			_concat.add(_handler(string_char_at(_string, _i), _i, _string));
+    		} until (_i++ == _size);
+    		return _interface.render();
     	}
     	return "";
     }
@@ -788,9 +863,11 @@
     //
     function stringExt_concat() {
     	if argument_count {
-	    	var _new_string = ____system_string_memory____().concat, _i = -1;
-	    	while (++_i < argument_count) _new_string.add(argument[_i]);
-	    	return _new_string.render();
+    		var _interface = ____system_string_memory____(), _concat = _interface.concat, _i = 0;
+	    	do {
+	    		_concat.add(argument[_i]);
+	    	} until (++_i == argument_count);
+	    	return _interface.updata();
     	}
     	return "";
     }
@@ -799,23 +876,23 @@
 
 #region metwrap
     
-    /// @function runFor([run=factory_data(), class=undefined]);
+    /// @function runFor([run=generator_method_(), class=undefined]);
     /// @description
-    /// @param [run=factory_data() {function/method}
+    /// @param [run=generator_method_() {function/method}
     /// @param class=undefined] {struct/instance}
     /// @returns {method}
     function runFor(_run, _class) {
-        static _default = factory_data();
+        static _default = generator_method_();
         if is_undefined(_run) return _default;
         return method(_class, _run);
     }
     
-    /// @function unFrom([meth=method_get_index(factory_data())]);
+    /// @function unFrom([meth=method_get_index(generator_method_())]);
     /// @description
-    /// @param [meth=method_get_index(factory_data())] {method}
+    /// @param [meth=method_get_index(generator_method_())] {method}
     /// @returns {function}
     function unFrom(_meth) {
-        static _default = method_get_index(factory_data());
+        static _default = method_get_index(generator_method_());
         if is_undefined(_meth) return _default;
         return method_get_index(_meth);
     }
@@ -997,35 +1074,38 @@
     		return "";
     	}
     	static replace = function(_substring, _string) {
-    		var _new_string = ____system_string_memory____().concat;
+    		var _interface = ____system_string_memory____(), _concat = _interface.concat;
     		if is_string(_string) {
     			var _size = string_length(_string);
     			if _size {
     				var _i = 0, _char;
     				while (_i++ < _size) {
     					_char = string_char_at(_string, _i);
-    					_new_string.add(self.__char_is(_char) ? _char : _substring);
+    					_concat.add(self.__char_is(_char) ? _char : _substring);
     				}
     			}
     		}
-    		return _new_string.render();
+    		return _interface.updata();
     	}
     	static write = function() {
     		if is_undefined(self.__render) {
-    			var _new_string = ____system_string_memory____().concat;
     			var _size = array_length(self.__selector);
     			if _size {
+    				var _interface = ____system_string_memory____(), _concat = _interface.concat;
     				var _i = -1, _in, _out;
     				while (++_i < _size) {
     					_out = self.__selector[_i];
     					_in = _out[0]; _in = _out[1];
     					do {
-    						_new_string.add(chr(_in++));
+    						concat.add(chr(_in++));
     					} until (_in == _out);
     				}
+    				self.__render = _interface.updata();
+    				return self.__render;
     			}
+    			self.__render = "";
+    			return "";
     		}
-    		self.__render = _new_string.render();
     		return self.__render;
     	}
 		static read = function(_string_selector) {
@@ -1152,9 +1232,38 @@
 		_memory.autoCastTime = 450;
 	}
 	
+	//
+	function get_function(_function, _getOnlyUser) {
+		if is_method(_function) _function = method_get_index(_function);
+		if script_exists(_function) {
+			if _getOnlyUser {
+				var _name = script_get_name(_function);
+				if (asset_get_type(_name) == asset_unknown) return -1;
+			}
+			return _function;
+		}
+		return -1;
+	}
+	
 #endregion
 
 #region --hide system
+	
+	//
+	function ____system_predicate_equal____() {
+		static _predicate_equal = {
+        	_check_left : undefined,
+        	_predicate : function(_check_right) {
+        		return self._check_left == _check_right;
+        	},
+        }
+        if (argument_count == 0) {
+        	delete _predicate_equal._check_left;
+        	exit;
+        }
+        _predicate_equal._check_left = argument[0];
+		return _predicate_equal._predicate;
+	}
 	
 	//
 	function ____system_string_memory____() {
@@ -1195,9 +1304,6 @@
 				self.__stack = undefined;
 				return _stack;
 			},
-			interface: function() {
-				return self.concat;
-			}
 		}
 		return _interface;
 	}
@@ -1213,5 +1319,5 @@
 
 // TODO fix static-field
 // TODO JDoc updata
-// TODO while -> do until -> for optimizate 
+// TODO while -> do until -> for optimizate
 // TODO optimizate
