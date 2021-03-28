@@ -21,68 +21,38 @@
 // #import arrayExt.*         in ArrExt
 // #import structExt.*        in ObjExt
 // #import stringExt.*        in StrExt
-// #import generator_method.* in GenMet
 // <<
 
-#region generator-method
+#region get
 	
 	//
-	#macro GENERATOR_ARRAY        generator_method_data(-1)
-	#macro GENERATOR_UNDEF        generator_method_data(0)
-	#macro GENERATOR_OBJCT        generator_method_data(1)
-	#macro GENERATOR_FST          generator_method_get(0)
-	#macro GENERATOR_LST          generator_method_get(1)
-	#macro GENERATOR_CAST_BUNG    generator_method_bung
-	#macro GENERATOR_CAST_EROR    generator_method_error
-	#macro GENERATOR_CAST_RUNN    generator_method_runner
+	function get_id(_id) {
+		return argument[0];
+	}
 	
-    /// @function generator_method_data([-1=[]|0=undefined|1={}=0]);
-    /// @param [-1=[]|0=undefined|1={}=0] {sign}
-    /// @returns {method}
-    function generator_method_data(_array_undefined_struct_) {
-        static _data_type =
-            [ method(undefined, function() {return []})
-            , method(undefined, function() {return undefined})
-            , method(undefined, function() {return {}})
-            ];
-        if is_undefined(_array_undefined_struct_) return _data_type[1];
-        try {
-        	return _data_type[_array_undefined_struct_ + 1];
-        } catch(_) {
-        	throw "TODOTHROW";
-        }
-    }
-    
-    /// @function generator_method_get([0=fst|1=lst=0]);
-    /// @param [0=fst|1=lst=0] {buffer_bool}
-    /// @returns {method}
-    function generator_method_get(_fst_lst_) {
-        static _get_type =
-            [ method(undefined, function() {return argument[0]})
-            , method(undefined, function() {return argument[argument_count - 1]})
-            ];
-        if is_undefined(_fst_lst_) return _get_type[0];
-        try {
-        	return _get_type[_fst_lst_];
-        } catch(_) {
-        	throw "TODOTHROW";
-        }
-    }
-    
-    /// @function generator_method_bung(value);
+	//
+	function get_empty() {
+		return undefined;
+	}
+
+#endregion
+
+#region generator
+	
+    /// @function generator_bung(value);
     /// @param value {any}
     /// @returns {method}
-    function generator_method_bung() {
+    function generator_bung() {
         static _met = method_get_index(function() {
 			return self._val;
 		});
 		return method({_val : argument[0]}, _met);
     }
     
-    /// @function generator_method_error(message);
+    /// @function generator_error(message);
     /// @param {buffer_string} message {buffer_string}
     /// @returns {method}
-    function generator_method_error() {
+    function generator_error() {
         static _met = method_get_index(function() {
     	    show_error(self._error, true);
 		});
@@ -90,7 +60,7 @@
     }
 	
 	//
-	function generator_method_runner(_arguments, _function) {
+	function generator_runner(_arguments, _function) {
 		static _runner = method_get_index(function() {
 			var _arguments = self._arguments;
 			if argument_count {
@@ -443,7 +413,7 @@
             }
             return _init;
         }
-        throw "";
+        throw "TODOTHROW";
     }
     
     /// @function arrayExt_find(array, predicate, [0=left|1=right=0, index=auto, step=1]);
@@ -785,38 +755,58 @@
 
 #region string
     
-    //
+    /// @param {string} substring
+    /// @param {string} string
+    /// @param {number} position
+    /// @returns {bool}
     function stringExt_startsWith(_substring, _string, _position) {
         if !is_numeric(_position) _position = 1;
-        return string_pos(_substring, string_delete(_string, 1, _position - 1)) == 1;
+        return (string_pos(_substring, string_delete(_string, 1, _position - 1)) == 1);
     }
     
-    //
+    /// @param {string} substring
+    /// @param {string} string
+    /// @param {number} length
+    /// @returns {bool}
     function stringExt_endsWith(_substring, _string, _length) {
         if !is_numeric(_length) _length = string_length(_string);
-        return string_last_pos(_substring, string_copy(_string, 1, _length)) == (_length - string_length(_substring) + 1);
+        return (string_last_pos(_substring, string_copy(_string, 1, _length)) == (_length - string_length(_substring) + 1));
     }
     
-    //
+    /// @param {string} string
+    /// @param {number} indexBegin
+    /// @param {number} indexEnd
+    /// @returns {string}
     function stringExt_range(_string, _index_begin, _index_end) {
     	return string_copy(_string, _index_begin, _index_end - _index_begin + 1);
     }
     
-    //
+    /// @param {string} substring
+    /// @param {string} string
+    /// @param {number} index
+    /// @param {number} count
+    /// @returns {string}
     function stringExt_replace_count(_substring, _string, _index, _count) {
     	if (_count <= 0) return string_insert(_substring, _string, _index);
-    	if (_index < 1) or (_index-- > string_length(_string)) throw "";
+    	if (_index < 1) or (_index-- > string_length(_string)) throw "TODOTHROW";
     	return stringExt_concat(string_copy(_string, 1, _index), _substring, string_delete(_string, 1, _index + _count));
     }
     
-    //
+    /// @param {string} substring
+    /// @param {string} string
+    /// @param {number} indexBegin
+    /// @param {number} indexEnd
+    /// @returns {string}
     function stringExt_replace_pos(_substring, _string, _index_begin, _index_end) {
     	return stringExt_replace_count(_substring, _string, _index_begin, _index_end - _index_begin + 1);
     }
 	
-    //
+    /// @param {string} string
+    /// @param {array<(number[])>|string|StringSelector} ?selector
+    /// @param {bool} mode
+    /// @returns {string}
     function stringExt_selector(_string, _selector, _mode) {
-    	static _temp_selector = new StringSelector(undefined);
+    	static _temp_selector = new StringSelector();
     	if is_undefined(_mode) _mode = true;
     	if is_struct(_selector) and (instanceof(_selector) == "StringSelector") {
     		var _save_mode = _selector.mode;
@@ -833,7 +823,9 @@
     	return _result;
     }
     
-    //
+    /// @param {string} string
+    /// @param {function} predicate
+    /// @returns {string}
     function stringExt_filter(_string, _predicate) {
     	var _size = string_length(_string);
     	if _size {
@@ -847,7 +839,9 @@
     	return "";
     }
     
-    //
+    /// @param {string} string
+    /// @param {function} handler
+    /// @returns {string}
     function stringExt_map(_string, _handler) {
     	var _size = string_length(_string);
     	if _size {
@@ -860,7 +854,8 @@
     	return "";
     }
     
-    //
+    /// @param {string} ?...string
+    /// @returns {string}
     function stringExt_concat() {
     	if argument_count {
     		var _interface = ____system_string_memory____(), _concat = _interface.concat, _i = 0;
@@ -887,7 +882,6 @@
         return method(_class, _run);
     }
     
-    /// @function unFrom([meth=method_get_index(generator_method_())]);
     /// @description
     /// @param [meth=method_get_index(generator_method_())] {method}
     /// @returns {function}
@@ -901,7 +895,8 @@
 
 #region Class
 	
-	//
+	/// @param {number} ?size
+	/// @implements {StringConcat}
 	function StringConcat(_size) constructor {
 		self.__buffer = buffer_create(is_undefined(_size) ? 256 : _size, buffer_grow, 1);
 		static add = function(_string) {
@@ -915,7 +910,7 @@
 		}
 		static soak = function(_food) {
 			if is_struct(_food) {
-				if !variable_struct_exists(_food, "__buffer") throw "";
+				if !variable_struct_exists(_food, "__buffer") throw "TODOTHROW";
 				_food = _food.__buffer;
 			}
 			buffer_copy(_food, 0, buffer_tell(_food), self.__buffer, buffer_tell(self.__buffer));
@@ -947,7 +942,8 @@
 		}
 	}
 	
-	//
+	/// @param {array<(number[])>|string|StringSelector|undefined} ?param
+	/// @implements {StringSelector}
     function StringSelector(_param) constructor {
     	self.mode = true;
     	self.__selector = [];
@@ -1132,7 +1128,7 @@
     	}
     	if is_string(_param)
     		self.add(_param);
-    	else if is_array(_param) 
+    	else if is_array(_param)
     		self.selector_set(_param);
     	else if is_struct(_param) and (instanceof(_param) == "StringSelector") {
     		self.selector_set(_param.__selector);
@@ -1144,7 +1140,9 @@
 
 #region [convenient in gmedit] template-string
 	
-    //
+    /// @param {string} format
+    /// @param {any}    ?...arguments
+    /// @returns {string}
     // https://github.com/YellowAfterlife/GMEdit/wiki/Using-template-strings
     function sfmt(_format) { // full clone + memory controller
     	static _memory = ____system_string_memory____();
@@ -1192,9 +1190,10 @@
 #region [convenient in gmedit] null-conditional (operators + assignment)
 	
 	//
-	#macro nc_val global.___nc_val
+	#macro nc_val global.___nc_val /// @is {any}
 	
-	//
+	/// @param {any} value
+	/// @returns {bool}
 	// https://github.com/YellowAfterlife/GMEdit/wiki/Using-null-conditional-operators
 	function nc_set(_value) { // full clone
 		global.___nc_val = _value;
@@ -1205,7 +1204,7 @@
 
 #region system
 	
-	//
+	/// @returns {void}
 	function stringMemoryAutoCleaner() {
 		static _memory = ____system_string_memory____();
 		var _i = 0, _pack = variable_struct_get(_memory, "0");
@@ -1232,7 +1231,9 @@
 		_memory.autoCastTime = 450;
 	}
 	
-	//
+	/// @param {function} function
+	/// @param {bool} ?getOnlyUser
+	/// @returns {function}
 	function get_function(_function, _getOnlyUser) {
 		if is_method(_function) _function = method_get_index(_function);
 		if script_exists(_function) {
@@ -1249,7 +1250,8 @@
 
 #region --hide system
 	
-	//
+	/// @param {any} ?value
+	/// @returns {function|undefined}
 	function ____system_predicate_equal____() {
 		static _predicate_equal = {
         	_check_left : undefined,
@@ -1265,7 +1267,7 @@
 		return _predicate_equal._predicate;
 	}
 	
-	//
+	/// @returns {____system_string_memory____}
 	function ____system_string_memory____() {
 		static _interface = {
 			autoCastTime: 450,
@@ -1317,7 +1319,7 @@
 	
 #endregion
 
-// TODO fix static-field
 // TODO JDoc updata
-// TODO while -> do until -> for optimizate
-// TODO optimizate
+// TODO check global code
+// TODO meta-info
+// TODO tester
