@@ -1,6 +1,4 @@
 
-//!#import buffer.*          in Buf
-show_message(clamp(NaN, 0, 1))
 #region predicate-work
 	
 	//
@@ -225,7 +223,7 @@ show_message(clamp(NaN, 0, 1))
 			var _base = {};
 			with _base {
 				self.__release_size = 1024;
-				self.__buffer = buffer_create(self.__release_size, buffer_grow, 1);
+				self.__buffer = new Buf(self.__release_size, Buf.grow, 1);
 				self.__loan_stack = [];
 				self.__loan_stack_size = 0;
 				self.__loan_current = undefined;
@@ -237,7 +235,7 @@ show_message(clamp(NaN, 0, 1))
 							self.__loan_current = self.__loan_stack[self.__loan_stack_size - 1];
 							exit;
 						}
-						buffer_resize(self.__buffer, self.__release_size);
+						Buf.resize(self.__buffer, self.__release_size);
 						exit;
 					}
 					throw "";
@@ -245,7 +243,7 @@ show_message(clamp(NaN, 0, 1))
 				self.loan = function(_hook_mode) {
 					self.__loan_stack_size += 1;
 					self.__loan_current = {
-						alignment: buffer_tell(self.__buffer),
+						alignment: Buf.tell(self.__buffer),
 						hook: false,
 						mode: bool(_hook_mode),
 						mode_check: self.__loan_stack_size > 1 ? self.__loan_current : undefined,
@@ -260,12 +258,12 @@ show_message(clamp(NaN, 0, 1))
 					return self;
 				}
 				self.add = function(_string) {
-					buffer_write(self.__buffer, buffer_text, _string);
+					Buf.write(self.__buffer, Buf.text, _string);
 					return self;
 				}
 				self.push = function() {
 					var _i = -1;
-					while (++_i < argument_count) buffer_write(self.__buffer, buffer_text, argument[_i]);
+					while (++_i < argument_count) Buf.write(self.__buffer, Buf.text, argument[_i]);
 					return self;
 				}
 				self.soak = function(_food) {
@@ -273,7 +271,7 @@ show_message(clamp(NaN, 0, 1))
 						if !Obj.exists(_food, "__buffer") throw "";
 						_food = _food.__buffer;
 					}
-					buffer_copy(_food, 0, buffer_tell(_food), self.__buffer, buffer_tell(self.__buffer));
+					Buf.copy(_food, 0, Buf.tell(_food), self.__buffer, Buf.tell(self.__buffer));
 					return self;
 				}
 				self.hook = function(_mode) {
@@ -282,10 +280,10 @@ show_message(clamp(NaN, 0, 1))
 				}
 				self.render = function() {
 					var _buff = self.__buffer, _alig = self.__loan_current.alignment;
-					buffer_write(_buff, buffer_u8, 0);
-					buffer_seek(_buff, buffer_seek_start, _alig);
-					var _render = buffer_peek(_buff, _alig, buffer_string);
-					buffer_poke(_buff, _alig, buffer_u8, 0);
+					Buf.write(_buff, Buf.u8, 0);
+					Buf.seek(_buff, Buf.seek_start, _alig);
+					var _render = Buf.peek(_buff, _alig, Buf.string);
+					Buf.poke(_buff, _alig, Buf.u8, 0);
 					self.__release();
 					return _render;
 				}
